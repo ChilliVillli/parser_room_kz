@@ -1,6 +1,7 @@
 import requests
+import os
+from dotenv import load_dotenv
 from fake_useragent import UserAgent
-from aiogram.types import CallbackQuery
 from bs4 import BeautifulSoup
 from time import sleep
 from aiogram import Bot, Dispatcher, executor, types
@@ -8,14 +9,13 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from keybord import kb_client, keyboard_stop
-# from selenium_web import all_numbers
+from keybord import kb_client, keyboard_tariff, kb_skip, kb_reserv, kb_mask, kb_s
 
 
-bot = Bot(token='5601906129:AAH1k-asnKub2yCS36TUmjHMUlr9UtcarW4')
+load_dotenv()
+bot = Bot(os.getenv('TOKEN'))
 dp = Dispatcher(bot, storage=MemoryStorage())
 ua = UserAgent()
-# headers = {'User-agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'}
 headers = {'User-agent': ua.random}
 
 
@@ -25,16 +25,7 @@ async def on_startup(_):
 
 class FSMAdmin(StatesGroup):
     name = State()
-    form_1 = State()
-    form_2 = State()
-    form_3 = State()
-    form_4 = State()
-    form_5 = State()
-    form_6 = State()
-    form_7 = State()
-    form_8 = State()
-    form_9 = State()
-    form_10 = State()
+    symbol_mask = State()
     tariff = State()
     mask = State()
     reserv = State()
@@ -53,8 +44,8 @@ async def cmd_start(message: types.Message):
     csrf_token = soup.find('input', {'name': '_csrf-auth'})['value']
     data_authorization = {
         '_csrf-auth': csrf_token,
-        'LoginForm[login]': '519891',
-        'LoginForm[password]': '4qt'
+        'LoginForm[login]': '666666',
+        'LoginForm[password]': 'thay1and'
     }
     r = session.post(url, data=data_authorization)
 
@@ -65,7 +56,7 @@ async def cmd_start(message: types.Message):
 async def filter(message: types.Message, state=FSMContext):
 
     await bot.send_message(message.from_user.id, 'Введите номер телефона или комбинацию цифр\n'
-                                                 'Если хотите продолжить без этого значения введите 👉 q 👈')
+                                                 'Если хотите продолжить без этого условия, жмите на кнопку!', reply_markup=kb_mask)
     await FSMAdmin.name.set()
 
 
@@ -78,172 +69,80 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         return
     await state.finish()
     await message.reply('OK')
+    await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
 
 
 @dp.message_handler(state=FSMAdmin.name)
 async def name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['name'] = message.text
-        for symbol in message.text:
-            for count in len(message.text):
-                if symbol == 'q':
-                    data['name'][count] = data['name'].replace('q', '')
-                if symbol != 'q':
-                    data['name'][count] = symbol
-
-
+        if message.text == 'Дальше':
+            data['name'] = data['name'].replace('Дальше', '')
 
     await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-1\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
+    await bot.send_message(message.from_user.id, 'Для ввода используйте A,B,C,N или цифры\n'
+                        'Если хотите продолжить без этого условия, жмите на кнопку!', reply_markup=kb_skip)
 
-@dp.message_handler(state=FSMAdmin.form_1)
-async def form_1(message: types.Message, state: FSMContext):
+
+@dp.message_handler(state=FSMAdmin.symbol_mask)
+async def symbol_mask(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data['form_1'] = message.text
-        if message.text == 'q':
-            data['form_1'] = data['form_1'].replace('q', '')
+        data['symbol_mask'] = message.text
+        if message.text == 'Пропустить':
+            data['symbol_mask'] = data['symbol_mask'].replace('П', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('р', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('о', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('п', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('у', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('с', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('т', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('и', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('т', ' ')
+            data['symbol_mask'] = data['symbol_mask'].replace('ь', ' ')
+
     await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-2\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
+    await bot.send_message(message.from_user.id, 'Введите тариф\n'
+                        'Если хотите продолжить без этого условия, жмите на кнопку!', reply_markup=keyboard_tariff)
 
 
-@dp.message_handler(state=FSMAdmin.form_2)
-async def form_2(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_2'] = message.text
-        if message.text == 'q':
-            data['form_2'] = data['form_2'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-3\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_3)
-async def form_3(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_3'] = message.text
-        if message.text == 'q':
-            data['form_3'] = data['form_3'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-4\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_4)
-async def form_4(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_4'] = message.text
-        if message.text == 'q':
-            data['form_4'] = data['form_4'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-5\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_5)
-async def form_5(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_5'] = message.text
-        if message.text == 'q':
-            data['form_5'] = data['form_5'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-6\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_6)
-async def form_6(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_6'] = message.text
-        if message.text == 'q':
-            data['form_6'] = data['form_6'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-7\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_7)
-async def form_7(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_7'] = message.text
-        if message.text == 'q':
-            data['form_7'] = data['form_7'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-8\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_8)
-async def form_8(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_8'] = message.text
-        if message.text == 'q':
-            data['form_8'] = data['form_8'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-9\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_9)
-async def form_9(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['form_9'] = message.text
-        if message.text == 'q':
-            data['form_9'] = data['form_9'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Для ввода используйте A,B,C,N или цифры-10\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-
-@dp.message_handler(state=FSMAdmin.form_10)
-async def form_10(message: types.Message, state: FSMContext):
-
-    async with state.proxy() as data:
-        data['form_10'] = message.text
-        if message.text == 'q':
-            data['form_10'] = data['form_10'].replace('q', '')
-    await FSMAdmin.next()
-    await message.reply('Введите тариф\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
-
-@dp.message_handler(state=FSMAdmin.tariff )
+@dp.message_handler(state=FSMAdmin.tariff)
 async def tariff(message: types.Message, state: FSMContext):
 
     async with state.proxy() as data:
         data['tariff'] = message.text
-        if message.text == 'q':
-            data['tariff'] = data['tariff'].replace('q', '')
+        if message.text == 'Без тарифа':
+            data['tariff'] = data['tariff'].replace('Без тарифа', '')
 
     await FSMAdmin.next()
-    await message.reply('Введите нужную маску, через запятую без пробела!\n'
-                        'Например-AAABCBC,NAAABBB\n'
-                        'Если хотите продолжить без этого значения введите 👉 q 👈')
+    await bot.send_message(message.from_user.id, 'Введите нужную маску, через запятую без пробела!\n'
+                        'Например - AAABCBC,NAAABBB\n', reply_markup=kb_mask)
 
 @dp.message_handler(state=FSMAdmin.mask)
 async def mask(message: types.Message, state: FSMContext):
 
     async with state.proxy() as data:
         data['mask'] = message.text
-        if message.text == 'q':
-            data['mask'] = data['mask'].replace('q', '')
+        if message.text == 'Дальше':
+            data['mask'] = data['mask'].replace('Дальше', '')
 
     await FSMAdmin.next()
-    await message.reply('Бронировать номера? Введите нужный вариант Yes/No')
+    await bot.send_message(message.from_user.id, 'Бронировать номера?', reply_markup=kb_reserv)
+
 
 @dp.message_handler(state=FSMAdmin.reserv)
 async def reserv(message: types.Message, state: FSMContext):
-    global r, session
+    global r, session, Flag
 
     async with state.proxy() as data:
         data['reserv'] = message.text.upper()
-        if message.text == 'YES':
+        if message.text == 'Yes':
             reserv_num = 'YES'
         else:
             reserv_num = 'NO'
 
-    page = 1
     list_num = []
+    page = 1
+
     url_work = "https://store-old.bezlimit.ru/promo"
     soup_filter = BeautifulSoup(r.content, 'lxml')
     csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
@@ -253,16 +152,16 @@ async def reserv(message: types.Message, state: FSMContext):
         'PhonePromoSearch[phoneCombs][1]': data['name'],
         'PhonePromoSearch[phoneCombs][2]': '',
         'PhonePromoSearch[phoneCombs][3]': '',
-        'PhonePromoSearch[phonePattern][1]': data['form_1'].upper(),
-        'PhonePromoSearch[phonePattern][2]': data['form_2'].upper(),
-        'PhonePromoSearch[phonePattern][3]': data['form_3'].upper(),
-        'PhonePromoSearch[phonePattern][4]': data['form_4'].upper(),
-        'PhonePromoSearch[phonePattern][5]': data['form_5'].upper(),
-        'PhonePromoSearch[phonePattern][6]': data['form_6'].upper(),
-        'PhonePromoSearch[phonePattern][7]': data['form_7'].upper(),
-        'PhonePromoSearch[phonePattern][8]': data['form_8'].upper(),
-        'PhonePromoSearch[phonePattern][9]': data['form_9'].upper(),
-        'PhonePromoSearch[phonePattern][10]': data['form_10'].upper(),
+        'PhonePromoSearch[phonePattern][1]': data['symbol_mask'][0].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][2]': data['symbol_mask'][1].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][3]': data['symbol_mask'][2].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][4]': data['symbol_mask'][3].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][5]': data['symbol_mask'][4].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][6]': data['symbol_mask'][5].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][7]': data['symbol_mask'][6].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][8]': data['symbol_mask'][7].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][9]': data['symbol_mask'][8].replace(' ', '').upper(),
+        'PhonePromoSearch[phonePattern][10]': data['symbol_mask'][9].replace(' ', '').upper(),
         'PhonePromoSearch[tariffList]': '',
         'PhonePromoSearch[tariffList][]': data['tariff'],
         'PhonePromoSearch[categoryList]': '',
@@ -272,9 +171,7 @@ async def reserv(message: types.Message, state: FSMContext):
     r_filter = session.post(url_work, data=data_filter)
     soup_filter = BeautifulSoup(r_filter.content, 'lxml')
 
-    await state.update_data({"parsing_continue": True})
-    while (await state.get_data()).get("parsing_continue"):
-
+    while True:
         if len(soup_filter.find_all('div')) < 500:
             csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
             data_filter = {
@@ -283,16 +180,16 @@ async def reserv(message: types.Message, state: FSMContext):
                 'PhonePromoSearch[phoneCombs][1]': data['name'],
                 'PhonePromoSearch[phoneCombs][2]': '',
                 'PhonePromoSearch[phoneCombs][3]': '',
-                'PhonePromoSearch[phonePattern][1]': data['form_1'].upper(),
-                'PhonePromoSearch[phonePattern][2]': data['form_2'].upper(),
-                'PhonePromoSearch[phonePattern][3]': data['form_3'].upper(),
-                'PhonePromoSearch[phonePattern][4]': data['form_4'].upper(),
-                'PhonePromoSearch[phonePattern][5]': data['form_5'].upper(),
-                'PhonePromoSearch[phonePattern][6]': data['form_6'].upper(),
-                'PhonePromoSearch[phonePattern][7]': data['form_7'].upper(),
-                'PhonePromoSearch[phonePattern][8]': data['form_8'].upper(),
-                'PhonePromoSearch[phonePattern][9]': data['form_9'].upper(),
-                'PhonePromoSearch[phonePattern][10]': data['form_10'].upper(),
+                'PhonePromoSearch[phonePattern][1]': data['symbol_mask'][0].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][2]': data['symbol_mask'][1].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][3]': data['symbol_mask'][2].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][4]': data['symbol_mask'][3].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][5]': data['symbol_mask'][4].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][6]': data['symbol_mask'][5].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][7]': data['symbol_mask'][6].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][8]': data['symbol_mask'][7].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][9]': data['symbol_mask'][8].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][10]': data['symbol_mask'][9].replace(' ', '').upper(),
                 'PhonePromoSearch[tariffList]': '',
                 'PhonePromoSearch[tariffList][]': data['tariff'],
                 'PhonePromoSearch[categoryList]': '',
@@ -306,34 +203,34 @@ async def reserv(message: types.Message, state: FSMContext):
                 new_phone = j.find('h2').text
                 if new_phone not in list_num:
                     sleep(1)
-                    await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown",
-                                           reply_markup=keyboard_stop)
+                    await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown", reply_markup=kb_s)
                     if reserv_num == 'YES':
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
                     list_num.append(new_phone)
                 else:
-                    sleep(1)
-                    await bot.send_message(message.from_user.id, 'новых номеров нет, прервать цикл?', parse_mode="Markdown",
-                                           reply_markup=keyboard_stop)
+                    bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
+                    sleep(3)
+                    await bot_answer.delete()
                     break
+
         if len(soup_filter.find_all('div')) > 500:
             csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
             data_filter = {
                 '_csrf-auth': csrf_token_filter,
-                'PhonePromoSearch[page]': '',
+                'PhonePromoSearch[page]': str(page),
                 'PhonePromoSearch[phoneCombs][1]': data['name'],
                 'PhonePromoSearch[phoneCombs][2]': '',
                 'PhonePromoSearch[phoneCombs][3]': '',
-                'PhonePromoSearch[phonePattern][1]': data['form_1'].upper(),
-                'PhonePromoSearch[phonePattern][2]': data['form_2'].upper(),
-                'PhonePromoSearch[phonePattern][3]': data['form_3'].upper(),
-                'PhonePromoSearch[phonePattern][4]': data['form_4'].upper(),
-                'PhonePromoSearch[phonePattern][5]': data['form_5'].upper(),
-                'PhonePromoSearch[phonePattern][6]': data['form_6'].upper(),
-                'PhonePromoSearch[phonePattern][7]': data['form_7'].upper(),
-                'PhonePromoSearch[phonePattern][8]': data['form_8'].upper(),
-                'PhonePromoSearch[phonePattern][9]': data['form_9'].upper(),
-                'PhonePromoSearch[phonePattern][10]': data['form_10'].upper(),
+                'PhonePromoSearch[phonePattern][1]': data['symbol_mask'][0].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][2]': data['symbol_mask'][1].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][3]': data['symbol_mask'][2].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][4]': data['symbol_mask'][3].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][5]': data['symbol_mask'][4].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][6]': data['symbol_mask'][5].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][7]': data['symbol_mask'][6].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][8]': data['symbol_mask'][7].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][9]': data['symbol_mask'][8].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][10]': data['symbol_mask'][9].replace(' ', '').upper(),
                 'PhonePromoSearch[tariffList]': '',
                 'PhonePromoSearch[tariffList][]': data['tariff'],
                 'PhonePromoSearch[categoryList]': '',
@@ -347,120 +244,24 @@ async def reserv(message: types.Message, state: FSMContext):
                 new_phone = j.find('h2').text
                 if new_phone not in list_num:
                     sleep(1)
-                    await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown", reply_markup=keyboard_stop)
+                    await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown", reply_markup=kb_s)
                     if reserv_num == 'YES':
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
                     list_num.append(new_phone)
                 else:
-                    sleep(1)
-                    await bot.send_message(message.from_user.id, 'новых номеров нет, прервать цикл?',
-                                           parse_mode="Markdown", reply_markup=keyboard_stop)
+                    bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
+                    sleep(3)
+                    await bot_answer.delete()
                     break
             page += 1
-            if page >= 20:
-                page = 1
 
+        if len(soup_filter.find_all('div')) <= 82:
+            bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
+            sleep(3)
+            await bot_answer.delete()
 
-
-
-@dp.callback_query_handler(Text(equals="stop"), state='*')
-async def stop_callback(query: CallbackQuery, state: FSMContext):
-
-    await state.update_data({"parsing_continue": False})
-    await query.answer("Цикл остановлен")
-    await state.finish()
-    return await query.message.edit_text("Вы остановили цикл", reply_markup=None, disable_web_page_preview=True)
-
-
-# @dp.message_handler(text=['go'])
-# async def parsing_num(message: types.Message):
-#     global r, session
-#     list_num = []
-#     page = 1
-
-    # while page != 20:
-    #     url_work = "https://store-old.bezlimit.ru/promo"
-    #     soup_filter = BeautifulSoup(r.content, 'lxml')
-    #     csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
-    #     data_filter = {
-    #         '_csrf-auth': csrf_token_filter,
-    #         'PhonePromoSearch[page]': str(page),
-    #         'PhonePromoSearch[phoneCombs][1]': '',
-    #         'PhonePromoSearch[phoneCombs][2]': '',
-    #         'PhonePromoSearch[phoneCombs][3]': '',
-    #         'PhonePromoSearch[phonePattern][1]': '',
-    #         'PhonePromoSearch[phonePattern][2]': '',
-    #         'PhonePromoSearch[phonePattern][3]': '',
-    #         'PhonePromoSearch[phonePattern][4]': '',
-    #         'PhonePromoSearch[phonePattern][5]': '',
-    #         'PhonePromoSearch[phonePattern][6]': '',
-    #         'PhonePromoSearch[phonePattern][7]': '',
-    #         'PhonePromoSearch[phonePattern][8]': '',
-    #         'PhonePromoSearch[phonePattern][9]': '',
-    #         'PhonePromoSearch[phonePattern][10]': '',
-    #         'PhonePromoSearch[tariffList]': '',
-    #         'PhonePromoSearch[tariffList][]': '',
-    #         'PhonePromoSearch[categoryList]': '',
-    #         'PhonePromoSearch[regionList]': '',
-    #         'PhonePromoSearch[maskPattern]': ''
-    #     }
-    #     r_filter = session.post(url_work, data=data_filter)
-    #     sleep(3)
-    #     soup_filter = BeautifulSoup(r_filter.content, 'html.parser')
-    #     number = soup_filter.find_all('div', class_='phone-container')
-    #     for i in number:
-    #         name = i.find('h2').text
-    #         if name not in list_url:
-    #             list_url.append(name)
-    #         else:
-    #             continue
-    #     page += 1
-    #
-    #
-    # while True:
-    #
-    #     url_work = "https://store-old.bezlimit.ru/promo"
-    #     soup_filter = BeautifulSoup(r.content, 'lxml')
-    #     csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
-    #     data_filter = {
-    #         '_csrf-auth': csrf_token_filter,
-    #         'PhonePromoSearch[page]': str(page),
-    #         'PhonePromoSearch[phoneCombs][1]': '',
-    #         'PhonePromoSearch[phoneCombs][2]': '',
-    #         'PhonePromoSearch[phoneCombs][3]': '',
-    #         'PhonePromoSearch[phonePattern][1]': '',
-    #         'PhonePromoSearch[phonePattern][2]': '',
-    #         'PhonePromoSearch[phonePattern][3]': '',
-    #         'PhonePromoSearch[phonePattern][4]': '',
-    #         'PhonePromoSearch[phonePattern][5]': '',
-    #         'PhonePromoSearch[phonePattern][6]': '',
-    #         'PhonePromoSearch[phonePattern][7]': '',
-    #         'PhonePromoSearch[phonePattern][8]': '',
-    #         'PhonePromoSearch[phonePattern][9]': '',
-    #         'PhonePromoSearch[phonePattern][10]': '',
-    #         'PhonePromoSearch[tariffList]': '',
-    #         'PhonePromoSearch[tariffList][]': '',
-    #         'PhonePromoSearch[categoryList]': '',
-    #         'PhonePromoSearch[regionList]': '',
-    #         'PhonePromoSearch[maskPattern]': ''
-    #     }
-    #     r_filter = session.post(url_work, data=data_filter)
-    #     soup_filter = BeautifulSoup(r_filter.content, 'lxml')
-    #     number_phone = soup_filter.find_all('div', class_='phone-container')
-    #     for j in number_phone:
-    #         new_phone = j.find('h2').text
-    #         if new_phone not in list_num:
-    #             sleep(1)
-    #             await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown")
-    #             # session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
-    #             list_num.append(new_phone)
-    #         else:
-    #             continue
-    #     page += 1
-    #
-    #     if page >= 50:
-    #         page = 1
-
+        if page >= 20:
+            page = 1
 
 
 if __name__ == '__main__':
