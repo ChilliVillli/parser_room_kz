@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.filters import Text, Command
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from keybord import kb_client, keyboard_tariff, kb_skip, kb_reserv, kb_mask, kb_s
@@ -32,8 +32,8 @@ class FSMAdmin(StatesGroup):
 
 
 @dp.message_handler(commands=['start'])
-async def cmd_start(message: types.Message):
-    global r, session
+async def cmd_start(message: types.Message, state: FSMContext):
+    global r, session, flag
     await bot.send_message(message.from_user.id, 'Здравствуйте, {0.first_name}!'. format(message.from_user), reply_markup=kb_client)
 
     url = 'https://store-old.bezlimit.ru/app/login'
@@ -48,7 +48,7 @@ async def cmd_start(message: types.Message):
         'LoginForm[password]': 'thay1and'
     }
     r = session.post(url, data=data_authorization)
-
+    flag = True
     await bot.send_message(message.from_user.id, 'Бот авторизовался на сайте!')
 
 
@@ -117,6 +117,7 @@ async def tariff(message: types.Message, state: FSMContext):
     await bot.send_message(message.from_user.id, 'Введите нужную маску, через запятую без пробела!\n'
                         'Например - AAABCBC,NAAABBB\n', reply_markup=kb_mask)
 
+
 @dp.message_handler(state=FSMAdmin.mask)
 async def mask(message: types.Message, state: FSMContext):
 
@@ -131,7 +132,7 @@ async def mask(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=FSMAdmin.reserv)
 async def reserv(message: types.Message, state: FSMContext):
-    global r, session, Flag
+    global r, session, flag
 
     async with state.proxy() as data:
         data['reserv'] = message.text.upper()
@@ -168,10 +169,27 @@ async def reserv(message: types.Message, state: FSMContext):
         'PhonePromoSearch[regionList]': '',
         'PhonePromoSearch[maskPattern]': data['mask']
     }
-    r_filter = session.post(url_work, data=data_filter)
+    r_filter = session.post(url_work, data=data_filter, headers=headers)
     soup_filter = BeautifulSoup(r_filter.content, 'lxml')
 
-    while True:
+
+    while flag:
+        #
+        #
+        #     global flag
+        #     await message.reply("Остановка бота...")
+        #     flag = False
+        #     await state.finish()
+        #     await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
+        if flag == False:
+            await state.finish()
+            await message.reply('OK')
+            break
+        if message.text == '/stop':
+            await state.finish()
+            await message.reply('OK')
+            break
+
         if len(soup_filter.find_all('div')) < 500:
             csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
             data_filter = {
@@ -196,22 +214,22 @@ async def reserv(message: types.Message, state: FSMContext):
                 'PhonePromoSearch[regionList]': '',
                 'PhonePromoSearch[maskPattern]': data['mask']
             }
-            r_filter = session.post(url_work, data=data_filter)
+            r_filter = session.post(url_work, data=data_filter, headers=headers)
             soup_filter = BeautifulSoup(r_filter.content, 'lxml')
             number_phone = soup_filter.find_all('div', class_='phone-container')
             for j in number_phone:
                 new_phone = j.find('h2').text
                 if new_phone not in list_num:
                     sleep(1)
-                    await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown", reply_markup=kb_s)
+                    await bot.send_message(message.from_user.id, new_phone, reply_markup=kb_s)
                     if reserv_num == 'YES':
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
                     list_num.append(new_phone)
                 else:
-                    bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
-                    sleep(3)
-                    await bot_answer.delete()
-                    break
+                    # bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', reply_markup=kb_s)
+                    # sleep(1)
+                    # await bot_answer.delete()
+                    continue
 
         if len(soup_filter.find_all('div')) > 500:
             csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
@@ -237,7 +255,7 @@ async def reserv(message: types.Message, state: FSMContext):
                 'PhonePromoSearch[regionList]': '',
                 'PhonePromoSearch[maskPattern]': data['mask']
             }
-            r_filter = session.post(url_work, data=data_filter)
+            r_filter = session.post(url_work, data=data_filter, headers=headers)
             soup_filter = BeautifulSoup(r_filter.content, 'lxml')
             number_phone = soup_filter.find_all('div', class_='phone-container')
             for j in number_phone:
@@ -249,20 +267,47 @@ async def reserv(message: types.Message, state: FSMContext):
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
                     list_num.append(new_phone)
                 else:
-                    bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
-                    sleep(3)
-                    await bot_answer.delete()
-                    break
+                    # bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
+                    # sleep(1)
+                    # await bot_answer.delete()
+                    continue
             page += 1
 
         if len(soup_filter.find_all('div')) <= 82:
-            bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
-            sleep(3)
-            await bot_answer.delete()
+            continue
 
         if page >= 20:
             page = 1
 
+
+@dp.message_handler(commands=['go'])
+async def go(message: types.Message, state: FSMContext):
+    global list_num, data, reserv_num, url_work, flag
+    if message.text == 'go':
+        return await reserv
+    else:
+        await message.reply("Остановка бота...")
+        flag = False
+        await state.finish()
+        await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
+
+
+# @dp.message_handler()
+# @dp.message_handler(lambda message: message.get_command() not in (None, "/start", ...))
+# async def stop(message: types.Message, state: FSMContext):
+#     global flag
+#     await message.reply("Остановка бота...")
+#     flag = False
+#     await state.finish()
+#     await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
+
+
+# @dp.message_handler(Text(equals="stop"))
+# async def stop_parsing(message: types.Message, state: FSMContext):
+#     # просто обновляем данные
+#     await state.update_data({"parsing_continue": False})
+#     await state.finish()
+#     await bot.send_message(chat_id=message.from_user.id, text="парсинг остановлен")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
