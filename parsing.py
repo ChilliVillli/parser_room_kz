@@ -1,4 +1,6 @@
+import asyncio
 import requests
+import sqlite3 as sq
 import os
 from dotenv import load_dotenv
 from fake_useragent import UserAgent
@@ -21,6 +23,7 @@ headers = {'User-agent': ua.random}
 
 async def on_startup(_):
     print('Бот вышел в онлайн')
+    sql_start()
 
 
 class FSMAdmin(StatesGroup):
@@ -29,7 +32,15 @@ class FSMAdmin(StatesGroup):
     tariff = State()
     mask = State()
     reserv = State()
+    stop = State()
 
+def sql_start():
+    global base, cur
+    base = sq.connect('filter.db')
+    cur = base.cursor()
+    if base:
+        print('Data base connected OK!')
+    base.execute('CREATE TABLE IF NOT EXISTS fil(num TEXT, symbol_mask TEXT, tariff TEXT, mask TEXT, reserv TEXT)')
 
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message, state: FSMContext):
@@ -44,8 +55,8 @@ async def cmd_start(message: types.Message, state: FSMContext):
     csrf_token = soup.find('input', {'name': '_csrf-auth'})['value']
     data_authorization = {
         '_csrf-auth': csrf_token,
-        'LoginForm[login]': '666666',
-        'LoginForm[password]': 'thay1and'
+        'LoginForm[login]': '519891',  #666666 thay1and
+        'LoginForm[password]': '4qt'
     }
     r = session.post(url, data=data_authorization)
     flag = True
@@ -60,16 +71,18 @@ async def filter(message: types.Message, state=FSMContext):
     await FSMAdmin.name.set()
 
 
+
 @dp.message_handler(state="*", commands='отмена')
 @dp.message_handler(Text(equals='отмена', ignore_case=True), state="*")
 async def cancel_handler(message: types.Message, state: FSMContext):
-
+    global flag
     current_state = await state.get_state()
     if current_state is None:
         return
     await state.finish()
+    flag = False
     await message.reply('OK')
-    await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
+    await bot.send_message(message.from_user.id, '🛑Перезагрузите бота🛑', reply_markup=kb_client)
 
 
 @dp.message_handler(state=FSMAdmin.name)
@@ -132,182 +145,177 @@ async def mask(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=FSMAdmin.reserv)
 async def reserv(message: types.Message, state: FSMContext):
-    global r, session, flag
-
+    global flag
     async with state.proxy() as data:
         data['reserv'] = message.text.upper()
-        if message.text == 'Yes':
-            reserv_num = 'YES'
-        else:
-            reserv_num = 'NO'
+
+    async with state.proxy() as data:
+        cur.execute('INSERT INTO fil VALUES (?, ?, ?, ?, ?)', tuple(data.values()))
+        base.commit()
+
+    for ret in cur.execute('SELECT * FROM fil').fetchall():
+        num = ret[0]
+        sym_mask = ret[1]
+        trf = ret[2]
+        msk = ret[3]
+        rev = ret[4]
 
     list_num = []
     page = 1
 
-    url_work = "https://store-old.bezlimit.ru/promo"
-    soup_filter = BeautifulSoup(r.content, 'lxml')
-    csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
-    data_filter = {
-        '_csrf-auth': csrf_token_filter,
-        'PhonePromoSearch[page]': str(page),
-        'PhonePromoSearch[phoneCombs][1]': data['name'],
-        'PhonePromoSearch[phoneCombs][2]': '',
-        'PhonePromoSearch[phoneCombs][3]': '',
-        'PhonePromoSearch[phonePattern][1]': data['symbol_mask'][0].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][2]': data['symbol_mask'][1].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][3]': data['symbol_mask'][2].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][4]': data['symbol_mask'][3].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][5]': data['symbol_mask'][4].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][6]': data['symbol_mask'][5].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][7]': data['symbol_mask'][6].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][8]': data['symbol_mask'][7].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][9]': data['symbol_mask'][8].replace(' ', '').upper(),
-        'PhonePromoSearch[phonePattern][10]': data['symbol_mask'][9].replace(' ', '').upper(),
-        'PhonePromoSearch[tariffList]': '',
-        'PhonePromoSearch[tariffList][]': data['tariff'],
-        'PhonePromoSearch[categoryList]': '',
-        'PhonePromoSearch[regionList]': '',
-        'PhonePromoSearch[maskPattern]': data['mask']
-    }
-    r_filter = session.post(url_work, data=data_filter, headers=headers)
-    soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+    if rev == 'YES':
+        await message.reply('Бот набирает базу номеров...')
+        url_work = "https://store-old.bezlimit.ru/promo"
+        soup_filter = BeautifulSoup(r.content, 'lxml')
+        csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
+        data_filter = {
+            '_csrf-auth': csrf_token_filter,
+            'PhonePromoSearch[page]': str(page),
+            'PhonePromoSearch[phoneCombs][1]': num,
+            'PhonePromoSearch[phoneCombs][2]': '',
+            'PhonePromoSearch[phoneCombs][3]': '',
+            'PhonePromoSearch[phonePattern][1]': sym_mask[0].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][2]': sym_mask[1].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][3]': sym_mask[2].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][4]': sym_mask[3].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][5]': sym_mask[4].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][6]': sym_mask[5].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][7]': sym_mask[6].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][8]': sym_mask[7].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][9]': sym_mask[8].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][10]': sym_mask[9].replace(' ', '').upper(),
+            'PhonePromoSearch[tariffList]': '',
+            'PhonePromoSearch[tariffList][]': trf,
+            'PhonePromoSearch[categoryList]': '',
+            'PhonePromoSearch[regionList]': '',
+            'PhonePromoSearch[maskPattern]': msk
+        }
+        r_filter = session.post(url_work, data=data_filter, headers=headers)
+        soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+        numbers_base = soup_filter.find_all('div', class_='phone-container')
+        for i in numbers_base:
+            num_base = i.find('h2').text
+            list_num.append(num_base)
+        await message.reply(f'Бот собрал {len(list_num)} номер')
+    if rev == 'NO':
+        url_work = "https://store-old.bezlimit.ru/promo"
+        soup_filter = BeautifulSoup(r.content, 'lxml')
+        csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
+        data_filter = {
+            '_csrf-auth': csrf_token_filter,
+            'PhonePromoSearch[page]': str(page),
+            'PhonePromoSearch[phoneCombs][1]': num,
+            'PhonePromoSearch[phoneCombs][2]': '',
+            'PhonePromoSearch[phoneCombs][3]': '',
+            'PhonePromoSearch[phonePattern][1]': sym_mask[0].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][2]': sym_mask[1].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][3]': sym_mask[2].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][4]': sym_mask[3].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][5]': sym_mask[4].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][6]': sym_mask[5].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][7]': sym_mask[6].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][8]': sym_mask[7].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][9]': sym_mask[8].replace(' ', '').upper(),
+            'PhonePromoSearch[phonePattern][10]': sym_mask[9].replace(' ', '').upper(),
+            'PhonePromoSearch[tariffList]': '',
+            'PhonePromoSearch[tariffList][]': trf,
+            'PhonePromoSearch[categoryList]': '',
+            'PhonePromoSearch[regionList]': '',
+            'PhonePromoSearch[maskPattern]': msk
+        }
+        r_filter = session.post(url_work, data=data_filter, headers=headers)
+        soup_filter = BeautifulSoup(r_filter.content, 'lxml')
 
 
-    while flag:
-        #
-        #
-        #     global flag
-        #     await message.reply("Остановка бота...")
-        #     flag = False
-        #     await state.finish()
-        #     await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
-        if flag == False:
-            await state.finish()
-            await message.reply('OK')
-            break
-        if message.text == '/stop':
-            await state.finish()
-            await message.reply('OK')
-            break
-
-        if len(soup_filter.find_all('div')) < 500:
-            csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
-            data_filter = {
-                '_csrf-auth': csrf_token_filter,
-                'PhonePromoSearch[page]': '',
-                'PhonePromoSearch[phoneCombs][1]': data['name'],
-                'PhonePromoSearch[phoneCombs][2]': '',
-                'PhonePromoSearch[phoneCombs][3]': '',
-                'PhonePromoSearch[phonePattern][1]': data['symbol_mask'][0].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][2]': data['symbol_mask'][1].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][3]': data['symbol_mask'][2].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][4]': data['symbol_mask'][3].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][5]': data['symbol_mask'][4].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][6]': data['symbol_mask'][5].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][7]': data['symbol_mask'][6].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][8]': data['symbol_mask'][7].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][9]': data['symbol_mask'][8].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][10]': data['symbol_mask'][9].replace(' ', '').upper(),
-                'PhonePromoSearch[tariffList]': '',
-                'PhonePromoSearch[tariffList][]': data['tariff'],
-                'PhonePromoSearch[categoryList]': '',
-                'PhonePromoSearch[regionList]': '',
-                'PhonePromoSearch[maskPattern]': data['mask']
-            }
-            r_filter = session.post(url_work, data=data_filter, headers=headers)
-            soup_filter = BeautifulSoup(r_filter.content, 'lxml')
-            number_phone = soup_filter.find_all('div', class_='phone-container')
-            for j in number_phone:
-                new_phone = j.find('h2').text
-                if new_phone not in list_num:
-                    sleep(1)
-                    await bot.send_message(message.from_user.id, new_phone, reply_markup=kb_s)
-                    if reserv_num == 'YES':
-                        session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
-                    list_num.append(new_phone)
-                else:
-                    # bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', reply_markup=kb_s)
-                    # sleep(1)
-                    # await bot_answer.delete()
-                    continue
-
-        if len(soup_filter.find_all('div')) > 500:
-            csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
-            data_filter = {
-                '_csrf-auth': csrf_token_filter,
-                'PhonePromoSearch[page]': str(page),
-                'PhonePromoSearch[phoneCombs][1]': data['name'],
-                'PhonePromoSearch[phoneCombs][2]': '',
-                'PhonePromoSearch[phoneCombs][3]': '',
-                'PhonePromoSearch[phonePattern][1]': data['symbol_mask'][0].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][2]': data['symbol_mask'][1].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][3]': data['symbol_mask'][2].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][4]': data['symbol_mask'][3].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][5]': data['symbol_mask'][4].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][6]': data['symbol_mask'][5].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][7]': data['symbol_mask'][6].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][8]': data['symbol_mask'][7].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][9]': data['symbol_mask'][8].replace(' ', '').upper(),
-                'PhonePromoSearch[phonePattern][10]': data['symbol_mask'][9].replace(' ', '').upper(),
-                'PhonePromoSearch[tariffList]': '',
-                'PhonePromoSearch[tariffList][]': data['tariff'],
-                'PhonePromoSearch[categoryList]': '',
-                'PhonePromoSearch[regionList]': '',
-                'PhonePromoSearch[maskPattern]': data['mask']
-            }
-            r_filter = session.post(url_work, data=data_filter, headers=headers)
-            soup_filter = BeautifulSoup(r_filter.content, 'lxml')
-            number_phone = soup_filter.find_all('div', class_='phone-container')
-            for j in number_phone:
-                new_phone = j.find('h2').text
-                if new_phone not in list_num:
-                    sleep(1)
-                    await bot.send_message(message.from_user.id, new_phone, parse_mode="Markdown", reply_markup=kb_s)
-                    if reserv_num == 'YES':
-                        session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
-                    list_num.append(new_phone)
-                else:
-                    # bot_answer = await bot.send_message(message.from_user.id, 'ничего нету', parse_mode="Markdown", reply_markup=kb_s)
-                    # sleep(1)
-                    # await bot_answer.delete()
-                    continue
-            page += 1
+    while flag != False:
+        await asyncio.sleep(5)
 
         if len(soup_filter.find_all('div')) <= 82:
             continue
 
-        if page >= 20:
+        if len(soup_filter.find_all('div')) <= 3583:
+            csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
+            data_filter = {
+                '_csrf-auth': csrf_token_filter,
+                'PhonePromoSearch[page]': '',
+                'PhonePromoSearch[phoneCombs][1]': num,
+                'PhonePromoSearch[phoneCombs][2]': '',
+                'PhonePromoSearch[phoneCombs][3]': '',
+                'PhonePromoSearch[phonePattern][1]': sym_mask[0].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][2]': sym_mask[1].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][3]': sym_mask[2].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][4]': sym_mask[3].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][5]': sym_mask[4].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][6]': sym_mask[5].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][7]': sym_mask[6].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][8]': sym_mask[7].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][9]': sym_mask[8].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][10]': sym_mask[9].replace(' ', '').upper(),
+                'PhonePromoSearch[tariffList]': '',
+                'PhonePromoSearch[tariffList][]': trf,
+                'PhonePromoSearch[categoryList]': '',
+                'PhonePromoSearch[regionList]': '',
+                'PhonePromoSearch[maskPattern]': msk
+            }
+            r_filter = session.post(url_work, data=data_filter, headers=headers)
+            soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+            number_phone = soup_filter.find_all('div', class_='phone-container')
+            for j in number_phone:
+                new_phone = j.find('h2').text
+                if new_phone not in list_num:
+                    await asyncio.sleep(1)
+                    await bot.send_message(message.from_user.id, new_phone, reply_markup=kb_s)
+                    if rev == 'YES':
+                        session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
+                    list_num.append(new_phone)
+                else:
+                    continue
+
+        elif len(soup_filter.find_all('div')) >= 3584:
+            csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
+            data_filter = {
+                '_csrf-auth': csrf_token_filter,
+                'PhonePromoSearch[page]': str(page),
+                'PhonePromoSearch[phoneCombs][1]': num,
+                'PhonePromoSearch[phoneCombs][2]': '',
+                'PhonePromoSearch[phoneCombs][3]': '',
+                'PhonePromoSearch[phonePattern][1]': sym_mask[0].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][2]': sym_mask[1].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][3]': sym_mask[2].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][4]': sym_mask[3].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][5]': sym_mask[4].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][6]': sym_mask[5].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][7]': sym_mask[6].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][8]': sym_mask[7].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][9]': sym_mask[8].replace(' ', '').upper(),
+                'PhonePromoSearch[phonePattern][10]': sym_mask[9].replace(' ', '').upper(),
+                'PhonePromoSearch[tariffList]': '',
+                'PhonePromoSearch[tariffList][]': trf,
+                'PhonePromoSearch[categoryList]': '',
+                'PhonePromoSearch[regionList]': '',
+                'PhonePromoSearch[maskPattern]': msk
+            }
+            r_filter = session.post(url_work, data=data_filter, headers=headers)
+            soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+            number_phone = soup_filter.find_all('div', class_='phone-container')
+            for j in number_phone:
+                new_phone = j.find('h2').text
+                if new_phone not in list_num:
+                    await asyncio.sleep(1)
+                    await bot.send_message(message.from_user.id, new_phone, reply_markup=kb_s)
+                    if rev == 'YES':
+                        session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
+                    list_num.append(new_phone)
+                else:
+                    continue
+            page += 1
+
+        elif page >= 20:
             page = 1
 
+        elif flag == False:
+            break
 
-@dp.message_handler(commands=['go'])
-async def go(message: types.Message, state: FSMContext):
-    global list_num, data, reserv_num, url_work, flag
-    if message.text == 'go':
-        return await reserv
-    else:
-        await message.reply("Остановка бота...")
-        flag = False
-        await state.finish()
-        await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
-
-
-# @dp.message_handler()
-# @dp.message_handler(lambda message: message.get_command() not in (None, "/start", ...))
-# async def stop(message: types.Message, state: FSMContext):
-#     global flag
-#     await message.reply("Остановка бота...")
-#     flag = False
-#     await state.finish()
-#     await bot.send_message(message.from_user.id, '🛑ПЕРЕЗАГРУЗИТЕ БОТА!🛑', reply_markup=kb_client)
-
-
-# @dp.message_handler(Text(equals="stop"))
-# async def stop_parsing(message: types.Message, state: FSMContext):
-#     # просто обновляем данные
-#     await state.update_data({"parsing_continue": False})
-#     await state.finish()
-#     await bot.send_message(chat_id=message.from_user.id, text="парсинг остановлен")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
