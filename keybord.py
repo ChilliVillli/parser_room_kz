@@ -20,6 +20,18 @@ keyboard_next = KeyboardButton('Без тарифа')
 keyboard_tariff = ReplyKeyboardMarkup(resize_keyboard=True)
 keyboard_tariff.insert(keyboard_590).insert(keyboard_790).insert(keyboard_1000).insert(keyboard_1250).insert(keyboard_1500).insert(keyboard_2000).insert(keyboard_2500).insert(keyboard_3000).insert(keyboard_4000).add(keyboard_all).add(keyboard_next)
 
+
+keyboard_gold = KeyboardButton('gold')
+keyboard_brilliant = KeyboardButton('brilliant')
+keyboard_platinum = KeyboardButton('platinum')
+keyboard_silver = KeyboardButton('silver')
+keyboard_bronze = KeyboardButton('bronze')
+keyboard_bronze_vip = KeyboardButton('bronze_vip')
+keyboard_next_category = KeyboardButton('Без категории')
+keyboard_category = ReplyKeyboardMarkup(resize_keyboard=True)
+keyboard_category.insert(keyboard_gold).insert(keyboard_brilliant).insert(keyboard_platinum).insert(keyboard_silver).insert(keyboard_bronze).insert(keyboard_bronze_vip).add(keyboard_next_category)
+
+
 b2 = KeyboardButton('Пропустить')
 kb_skip = ReplyKeyboardMarkup(resize_keyboard=True)
 kb_skip.insert(b2)
