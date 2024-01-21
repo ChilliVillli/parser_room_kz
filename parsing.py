@@ -1,6 +1,5 @@
 import asyncio
 import sqlite3
-from selenium import webdriver
 import requests
 import sqlite3 as sq
 import os
@@ -46,6 +45,7 @@ def sql_start():
     curr = basee.cursor()
     basee.execute('CREATE TABLE IF NOT EXISTS fill(num TEXT, category TEXT, tariff TEXT, mask TEXT, reserv TEXT)')
 
+
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message, state: FSMContext):
     global r, session, flag
@@ -59,7 +59,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
     csrf_token = soup.find('input', {'name': '_csrf-auth'})['value']
     data_authorization = {
         '_csrf-auth': csrf_token,
-        'LoginForm[login]': '65796',  # 519891
+        'LoginForm[login]': '65796',  #519891
         'LoginForm[password]': '55a55K2+'
     }
     r = session.post(url, data=data_authorization)
@@ -258,7 +258,8 @@ async def reserv(message: types.Message, state: FSMContext):
         for i in numbers_base:
             num_base = i.find('h2').text
             list_num.append(num_base)
-        await message.reply(f'Бот собрал {len(list_num)} номер(-ов)')
+        # await message.reply(f'Бот собрал {len(list_num)} номер(-ов)')
+        await bot.send_message(message.from_user.id, f'Бот собрал {len(list_num)} номер(-ов)', reply_markup=kb_s)
 
     if rev == 'YES' and trf != '2000, 2500, 3000, 4000':
 
@@ -291,9 +292,9 @@ async def reserv(message: types.Message, state: FSMContext):
                 'PhonePromoSearch[regionList]': '',
                 'PhonePromoSearch[maskPattern]': msk
             }
-            await asyncio.sleep(5)
             r_filter = session.post(url_work, data=data_filter, headers=headers)
             soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+            await asyncio.sleep(8)
             numbers_base = soup_filter.find_all('div', class_='phone-container')
 
             if len(soup_filter.find_all('div')) <= 82:
@@ -308,13 +309,15 @@ async def reserv(message: types.Message, state: FSMContext):
             if len(list_num) < 500:
                 page = ''
                 break
+
             if len(list_num) < 2000:
                 page += 1
                 continue
+
             else:
                 break
 
-        await message.reply(f'Бот собрал {len(list_num)} номер(-ов)')
+        await bot.send_message(message.from_user.id, f'Бот собрал {len(list_num)} номер(-ов)', reply_markup=kb_s)
 
     if rev == 'NO' and trf == '2000, 2500, 3000, 4000':
 
@@ -347,6 +350,7 @@ async def reserv(message: types.Message, state: FSMContext):
         }
         r_filter = session.get(url_work, data=data_filter, headers=headers)
         soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+        await bot.send_message(message.from_user.id, 'Публикация номеров...', reply_markup=kb_s)
 
     if rev == 'NO' and trf != '2000, 2500, 3000, 4000':
         url_work = "https://store-old.bezlimit.ru/promo"
@@ -376,7 +380,7 @@ async def reserv(message: types.Message, state: FSMContext):
         }
         r_filter = session.post(url_work, data=data_filter, headers=headers)
         soup_filter = BeautifulSoup(r_filter.content, 'lxml')
-
+        await bot.send_message(message.from_user.id, 'Публикация номеров...', reply_markup=kb_s)
 
     while trf == '2000, 2500, 3000, 4000':
         await asyncio.sleep(1)
@@ -419,7 +423,6 @@ async def reserv(message: types.Message, state: FSMContext):
                 new_trf = q.find('h2').text
                 if new_trf not in list_num:
                     # await asyncio.sleep(1)
-
                     if rev == 'YES':
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_trf})
                         await message.reply(f'Бот забронировал номер - {new_trf}')
@@ -457,8 +460,8 @@ async def reserv(message: types.Message, state: FSMContext):
         'PhonePromoSearch[maskPattern]': msk
     }
         r_filter = session.post(url_work, data=data_filter, headers=headers)
-        await asyncio.sleep(1)
         soup_filter = BeautifulSoup(r_filter.content, 'lxml')
+        await asyncio.sleep(1)
 
         if len(list_num) > 500:
             page += 1
@@ -472,7 +475,7 @@ async def reserv(message: types.Message, state: FSMContext):
             for j in number_phone:
                 new_phone = j.find('h2').text
                 if new_phone not in list_num:
-                    # await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
                     if rev == 'YES':
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
                         await message.reply(f'Бот забронировал номер - {new_phone}')

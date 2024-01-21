@@ -39,7 +39,8 @@ kb_skip.insert(b2)
 b3 = KeyboardButton('Yes')
 b4 = KeyboardButton('No')
 kb_reserv = ReplyKeyboardMarkup(resize_keyboard=True)
-kb_reserv.insert(b3).insert(b4). add('отмена')
+kb_reserv.insert(b3).insert(b4) #.add('отмена')
+
 
 b5 = KeyboardButton('Дальше')
 kb_mask = ReplyKeyboardMarkup(resize_keyboard=True)
