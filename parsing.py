@@ -11,7 +11,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from keybord import kb_client, keyboard_tariff, kb_skip, kb_reserv, kb_mask, kb_s, keyboard_category
+from keybord import kb_client, keyboard_tariff, kb_skip, kb_reserv, kb_mask, kb_s, keyboard_category, kb_authoriz
 
 
 load_dotenv()
@@ -35,8 +35,13 @@ class FSMAdmin(StatesGroup):
     reserv = State()
 
 
+class authorization(StatesGroup):
+    login = State()
+    password = State()
+
+
 def sql_start():
-    global base, cur, curr, basee
+    global base, cur, curr, basee, cur_lp, base_lp
     base = sq.connect('filter.db')
     cur = base.cursor()
     base.execute('CREATE TABLE IF NOT EXISTS fil(num TEXT, symbol_mask TEXT, category TEXT, tariff TEXT, mask TEXT, reserv TEXT)')
@@ -45,26 +50,81 @@ def sql_start():
     curr = basee.cursor()
     basee.execute('CREATE TABLE IF NOT EXISTS fill(num TEXT, category TEXT, tariff TEXT, mask TEXT, reserv TEXT)')
 
+    base_lp = sq.connect('filter.db')
+    cur_lp = base_lp.cursor()
+    base_lp.execute('CREATE TABLE IF NOT EXISTS authoriz(login TEXT, password TEXT)')
+
+
 
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message, state: FSMContext):
     global r, session, flag
-    await bot.send_message(message.from_user.id, 'Здравствуйте, {0.first_name}!'. format(message.from_user), reply_markup=kb_client)
+    await bot.send_message(message.from_user.id, 'Здравствуйте, {0.first_name}!'. format(message.from_user))
 
-    url = 'https://store-old.bezlimit.ru/app/login'
-    session = requests.Session()
-    session.headers.update(headers)
-    r = session.get(url)
-    soup = BeautifulSoup(r.content, 'html.parser')
-    csrf_token = soup.find('input', {'name': '_csrf-auth'})['value']
-    data_authorization = {
-        '_csrf-auth': csrf_token,
-        'LoginForm[login]': '65796',  #519891
-        'LoginForm[password]': '55a55K2+'
-    }
-    r = session.post(url, data=data_authorization)
+    for ret in cur_lp.execute('SELECT * FROM authoriz ORDER BY rowid DESC LIMIT 1'):
+
+        url = 'https://store-old.bezlimit.ru/app/login'
+        session = requests.Session()
+        session.headers.update(headers)
+        r = session.get(url)
+        soup = BeautifulSoup(r.content, 'html.parser')
+        csrf_token = soup.find('input', {'name': '_csrf-auth'})['value']
+        data_authorization = {
+            '_csrf-auth': csrf_token,
+            'LoginForm[login]': ret[0],
+            'LoginForm[password]': ret[1]
+        }
+        r = session.post(url, data=data_authorization)
+
     flag = True
-    await bot.send_message(message.from_user.id, 'Бот авторизовался на сайте!')
+    await bot.send_message(message.from_user.id, 'Бот авторизовался на сайте!', reply_markup=kb_authoriz)
+
+
+@dp.message_handler(text=['Сменить логин'])
+async def login(message: types.Message, state: FSMContext):
+    await bot.send_message(message.from_user.id, 'Введите логин')
+    await authorization.login.set()
+
+
+@dp.message_handler(state=authorization.login)
+async def login_authoriz(message: types.Message, state: FSMContext):
+
+    async with state.proxy() as data_log:
+        data_log['login'] = message.text
+
+        await authorization.password.set()
+        await bot.send_message(message.from_user.id, 'Введите пароль')
+
+
+@dp.message_handler(state=authorization.password)
+async def password_authoriz(message: types.Message, state: FSMContext):
+
+    async with state.proxy() as data_log:
+        data_log['password'] = message.text
+
+    async with state.proxy() as data:
+        cur_lp.execute('INSERT INTO authoriz VALUES (?, ?)', tuple(data.values()))
+        base_lp.commit()
+
+    for ret in cur_lp.execute('SELECT * FROM authoriz').fetchall():
+
+        url = 'https://store-old.bezlimit.ru/app/login'
+        session = requests.Session()
+        session.headers.update(headers)
+        r = session.get(url)
+        soup = BeautifulSoup(r.content, 'html.parser')
+        csrf_token = soup.find('input', {'name': '_csrf-auth'})['value']
+        data_authorization = {
+            '_csrf-auth': csrf_token,
+            'LoginForm[login]': ret[0],
+            'LoginForm[password]': ret[1]
+        }
+        r = session.post(url, data=data_authorization)
+
+    flag = True
+    await bot.send_message(message.from_user.id, f'Бот под логином {ret[0]} авторизовался на сайте!', reply_markup=kb_client)
+    await state.finish()
+
 
 
 @dp.message_handler(text=['Фильтр'])
@@ -120,9 +180,9 @@ async def name(message: types.Message, state: FSMContext):
                     data['symbol_mask'] = data['symbol_mask'].replace('и', ' ')
                     data['symbol_mask'] = data['symbol_mask'].replace('т', ' ')
                     data['symbol_mask'] = data['symbol_mask'].replace('ь', ' ')
-            await FSMAdmin.tariff.set()
+            await FSMAdmin.category.set()
             await bot.send_message(message.from_user.id, 'Введите тариф\n'
-                                                         'Если хотите продолжить без этого условия, жмите на кнопку!', reply_markup=keyboard_tariff)
+                                                         'Если хотите продолжить без этого условия, жмите на кнопку!', reply_markup=keyboard_category)
 
 
 @dp.message_handler(state=FSMAdmin.symbol_mask)
@@ -221,6 +281,7 @@ async def reserv(message: types.Message, state: FSMContext):
 
     list_num = []
     page = 1
+    run = 1
 
     if rev == 'YES' and trf == '2000, 2500, 3000, 4000':
 
@@ -258,7 +319,7 @@ async def reserv(message: types.Message, state: FSMContext):
         for i in numbers_base:
             num_base = i.find('h2').text
             list_num.append(num_base)
-        # await message.reply(f'Бот собрал {len(list_num)} номер(-ов)')
+
         await bot.send_message(message.from_user.id, f'Бот собрал {len(list_num)} номер(-ов)', reply_markup=kb_s)
 
     if rev == 'YES' and trf != '2000, 2500, 3000, 4000':
@@ -294,12 +355,12 @@ async def reserv(message: types.Message, state: FSMContext):
             }
             r_filter = session.post(url_work, data=data_filter, headers=headers)
             soup_filter = BeautifulSoup(r_filter.content, 'lxml')
-            await asyncio.sleep(8)
+            await asyncio.sleep(3)
             numbers_base = soup_filter.find_all('div', class_='phone-container')
 
             if len(soup_filter.find_all('div')) <= 82:
                 page = 1
-                continue
+                break
 
             for i in numbers_base:
                 num_base = i.find('h2').text
@@ -320,7 +381,7 @@ async def reserv(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, f'Бот собрал {len(list_num)} номер(-ов)', reply_markup=kb_s)
 
     if rev == 'NO' and trf == '2000, 2500, 3000, 4000':
-
+        run = 2
         url_work = "https://store-old.bezlimit.ru/promo"
         soup_filter = BeautifulSoup(r.content, 'lxml')
         csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
@@ -353,6 +414,7 @@ async def reserv(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, 'Публикация номеров...', reply_markup=kb_s)
 
     if rev == 'NO' and trf != '2000, 2500, 3000, 4000':
+        run = 2
         url_work = "https://store-old.bezlimit.ru/promo"
         soup_filter = BeautifulSoup(r.content, 'lxml')
         csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
@@ -384,7 +446,7 @@ async def reserv(message: types.Message, state: FSMContext):
 
     while trf == '2000, 2500, 3000, 4000':
         await asyncio.sleep(1)
-
+        soup_filter = BeautifulSoup(r.content, 'lxml')
         csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
         data_filter = {
             '_csrf-auth': csrf_token_filter,
@@ -422,13 +484,13 @@ async def reserv(message: types.Message, state: FSMContext):
             for q in number_trf:
                 new_trf = q.find('h2').text
                 if new_trf not in list_num:
-                    # await asyncio.sleep(1)
                     if rev == 'YES':
                         session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_trf})
                         await message.reply(f'Бот забронировал номер - {new_trf}')
                         list_num.append(new_trf)
                         continue
                     await bot.send_message(message.from_user.id, new_trf, reply_markup=kb_s)
+                    await asyncio.sleep(run)
                     list_num.append(new_trf)
                 else:
                     continue
@@ -436,6 +498,7 @@ async def reserv(message: types.Message, state: FSMContext):
 
     while flag != False:
         await asyncio.sleep(1)
+        soup_filter = BeautifulSoup(r.content, 'lxml')
         csrf_token_filter = soup_filter.find('input', {'name': '_csrf-auth'})['value']
         data_filter = {
         '_csrf-auth': csrf_token_filter,
@@ -461,7 +524,6 @@ async def reserv(message: types.Message, state: FSMContext):
     }
         r_filter = session.post(url_work, data=data_filter, headers=headers)
         soup_filter = BeautifulSoup(r_filter.content, 'lxml')
-        await asyncio.sleep(1)
 
         if len(list_num) > 500:
             page += 1
@@ -475,14 +537,15 @@ async def reserv(message: types.Message, state: FSMContext):
             for j in number_phone:
                 new_phone = j.find('h2').text
                 if new_phone not in list_num:
-                    await asyncio.sleep(0.5)
                     if rev == 'YES':
-                        session.get("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
+                        session.post("https://store-old.bezlimit.ru/promo/reservation-turbo", data={'phone': new_phone})
+                        await asyncio.sleep(1)
                         await message.reply(f'Бот забронировал номер - {new_phone}')
                         list_num.append(new_phone)
                         continue
                     await bot.send_message(message.from_user.id, new_phone, reply_markup=kb_s)
                     list_num.append(new_phone)
+                    await asyncio.sleep(run)
                 else:
                     continue
 

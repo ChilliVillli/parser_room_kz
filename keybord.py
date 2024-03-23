@@ -1,10 +1,14 @@
-from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 
 b1 = KeyboardButton('Фильтр')
 kb_client = ReplyKeyboardMarkup(resize_keyboard=True)
 kb_client.insert(b1)
+
+kb_filter = KeyboardButton('Фильтр')
+log_pass = KeyboardButton('Сменить логин')
+kb_authoriz = ReplyKeyboardMarkup(resize_keyboard=True)
+kb_authoriz.insert(kb_filter).insert(log_pass)
 
 keyboard_590 = KeyboardButton('590')
 keyboard_790 = KeyboardButton('790')
